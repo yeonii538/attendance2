@@ -44,7 +44,7 @@
     var r = await sb().rpc(name, args || {});
     if (r.error) {
       var e = new Error(friendly(r.error));
-      e.status = (r.error.code === '28000' || r.error.code === 'PGRST301' || /JWT/i.test(r.error.message || '')) ? 401 : 400;
+      e.status = (r.error.code === '28000' || /permission denied for function/i.test(r.error.message || '') || r.error.code === 'PGRST301' || /JWT/i.test(r.error.message || '')) ? 401 : 400;
       throw e;
     }
     return r.data;
@@ -54,7 +54,11 @@
   async function api(method, url, body) {
     body = body || {};
     var c = sb(), m;
-    if (url === '/api/me' && method === 'GET') return rpc('api_me');
+    if (url === '/api/me' && method === 'GET') {
+      var ss = await c.auth.getSession();
+      if (!ss.data || !ss.data.session) { var e0 = new Error('로그인이 필요합니다.'); e0.status = 401; throw e0; }
+      return rpc('api_me');
+    }
     if (url.indexOf('/api/records?month=') === 0) return rpc('api_records', { p_month: url.split('=')[1] });
     if (url === '/api/punch') return rpc('api_punch', { p_kind: body.kind });
     if (url === '/api/me' && method === 'PUT') return rpc('api_update_me', { p_name: body.name, p_start: body.workStart, p_end: body.workEnd });
